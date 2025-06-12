@@ -1,10 +1,10 @@
 # phage-centroid-index-r
 An R implementation of [Hosseini's (2024)](https://www.nature.com/articles/s42003-024-06379-z) Centroid Index metric for assessing phage growth efficiency.
 
-This repo contains a single script, which can be executed from the terminal, and an example dataset. It is not an R package, although it could be in the future.
+This repo contains a single executable script, which can be run from the terminal, and an example dataset. It is not an R package, although it could be in the future.
 
 ## Important
-The script assumes the `csv` file has the same layout as returned by the Infitek's® spectrophotometer we have in Kinzbio. Should be easy to adapt to your own need. 
+The script assumes the `csv` file has the same layout as returned by the Infitek's® spectrophotometer we have at Kinzbio. Should be easy to adapt to your own need. 
 
 ## Usage
 ```
