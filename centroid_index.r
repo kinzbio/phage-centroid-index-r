@@ -65,8 +65,8 @@ compute_trapezoids <- function(x, od_col = "Test"){
         B <- c(x[[time_col]][i], 0)
         C <- c(x[[time_col]][i], x[[od_col]][i])
         D <- c(x[[time_col]][i-1], x[[od_col]][i-1])
-        E <- A
-        mat <- matrix(c(A, B, C, D, E), ncol = 2, byrow = TRUE)
+        # E <- A
+        mat <- matrix(c(A, B, C, D), ncol = 2, byrow = TRUE)
         trapezoids[[i-1]] <- mat
         A <- B
     }
@@ -83,7 +83,7 @@ centroid_xy_area <- function(vertices) {
     x <- vertices[, 1]
     y <- vertices[, 2]  
     
-    # 
+    # Close trapezoid (E == A)
     x_ext <- c(x, x[1])
     y_ext <- c(y, y[1]) 
     
@@ -195,8 +195,16 @@ main <- function(){
                 data.frame(
                     ID = od_col,
                     index = index,
-                    Cx = ca[["Cx"]],
-                    Cy = ca[["Cy"]],
+                    Ax = trp[1, 1],
+                    Ay = trp[1, 2],
+                    Bx = trp[2, 1], 
+                    By = trp[2, 2],
+                    Cx = trp[3, 1],
+                    Cy = trp[3, 2],
+                    Dx = trp[4, 1],
+                    Dy = trp[4, 2], 
+                    Centroid_x = ca[["Cx"]],
+                    Centroid_y = ca[["Cy"]],
                     Area = ca[["Area"]]
                 )
                 }, 
