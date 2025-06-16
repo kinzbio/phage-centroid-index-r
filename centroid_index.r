@@ -139,7 +139,6 @@ main <- function(){
         c("-c", "--control_column"),
         action = "store",
         type = "character",
-        default = "Time",
         help = "The name of the control column."
     )
 
@@ -148,7 +147,6 @@ main <- function(){
         c("-e", "--eval_columns"),
         action = "store",
         type = "character",
-        default = "Time",
         help = 'The name of the column to evaluate. Can be more than one, should be passed separated by comma and quoted: "B4,B5,B6".'
     )
 
@@ -174,6 +172,14 @@ main <- function(){
     control_col <- opt$control_column
     eval_cols <- opt$eval_columns
     plot <- opt$plot
+
+    # Check inputs
+    if (!length(input)) stop("Missing --input argument. Provide an input csv file.")
+    if (!file.exists(input)) stop(paste("Input file", input, "doesn't exists."))
+    if (!length(time_col)) stop("Missing --time_column argument. Provide the name of the Time column.")
+    if (!length(control_col)) stop("Missing --control_column argument. Provide the name of the Control column.")
+    if (!length(eval_cols)) stop("Missing --eval_columns argument. Provide the name of the columns to evaluate, separated by comma if multiple.")
+
 
     evals <- strsplit(eval_cols, ",")[[1]]
 
