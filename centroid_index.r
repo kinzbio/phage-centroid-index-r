@@ -109,7 +109,11 @@ centroid_xy_area <- function(vertices) {
 
 main <- function(){
 
-    if (!suppressPackageStartupMessages(require(optparse))) stop("Requires optparse package:\n\ninstall.packages('optparse')")
+    if (!suppressPackageStartupMessages(require(optparse)))  stop("Requires optparse package:\n\ninstall.packages('optparse')")
+    if (!suppressPackageStartupMessages(require(ggplot2)))   stop("Requires ggplot2 package:\n\ninstall.packages('ggplot2')")
+    if (!suppressPackageStartupMessages(require(magrittr)))  stop("Requires magrittr package:\n\ninstall.packages('magrittr')")
+    if (!suppressPackageStartupMessages(require(dplyr)))     stop("Requires dplyr package:\n\ninstall.packages('dplyr')")
+    if (!suppressPackageStartupMessages(require(tidyr)))     stop("Requires tidyr package:\n\ninstall.packages('tidyr')")
 
     parser <- OptionParser(formatter = TitledHelpFormatter)
 
@@ -148,6 +152,15 @@ main <- function(){
         help = 'The name of the column to evaluate. Can be more than one, should be passed separated by comma and quoted: "B4,B5,B6".'
     )
 
+    parser <- add_option(
+        parser,
+        c("-p", "--plot"),
+        action = "store",
+        type = "character",
+        default = "",
+        help = 'If provided, the name to the plot file (png). Default: ""'
+    )
+
     if (length(commandArgs(TRUE)) == 0) {
         print_help(parser)
         quit(status = 0)
@@ -160,6 +173,7 @@ main <- function(){
     time_col <- opt$time_column
     control_col <- opt$control_column
     eval_cols <- opt$eval_columns
+    plot <- opt$plot
 
     evals <- strsplit(eval_cols, ",")[[1]]
 
@@ -217,31 +231,61 @@ main <- function(){
         SIMPLIFY = FALSE
     )
 
-    # Compute centroids for the whole curves
-    whole_centroids <- lapply(tcas, function(y){
-        x_curve <- sum(y$Cx * y$Area) / sum(y$Area)
-        y_curve <- sum(y$Cy * y$Area) / sum(y$Area)
-        ID <- unique(y$ID)
-        c(
-            Cx = x_curve,
-            Cy = y_curve
+    polys <- tcas %>%
+        do.call(rbind, .) %>%
+        dplyr::group_by(ID, index) %>%
+        dplyr::reframe(
+            X = c(Ax, Bx, Cx, Dx, Ax),
+            Y = c(Ay, By, Cy, Dy, Ay),
+            Centroid_X = Centroid_x, 
+            Centroid_Y = Centroid_y,
+            Area = Area
         )
-    })
 
-    control_centroid <- whole_centroids[[control_col]]
-    evals_centroids <- whole_centroids[!grepl(control_col, names(whole_centroids))]
+    curve_centroids <- polys %>%
+        dplyr::group_by(ID, index) %>%
+        dplyr::reframe(
+            Centroid_X = unique(Centroid_X),
+            Centroid_Y = unique(Centroid_Y),
+            Area = unique(Area)
+        ) %>%
+        dplyr::group_by(ID) %>%
+        dplyr::reframe(
+            Curve_Centroid_X = sum(Centroid_X * Area) / sum(Area),
+            Curve_Centroid_Y = sum(Centroid_Y * Area) / sum(Area)
+        ) 
 
-    # Compute Centroid Index CI
-    CIs <- sapply(evals_centroids, function(y){
-        1 - ((
-            y[["Cx"]] * y[["Cy"]]
-        ) / (
-            control_centroid[["Cx"]] * control_centroid[["Cy"]]
-        ))
-    })
 
-    cat("Name\tCentroid_Index", sep = "\n")
-    cat(paste(names(CIs), CIs, sep = "\t"), sep = "\n")
+    if (plot != "") {
+
+            gg <- ggplot(polys, aes(x = X, y = Y, color = ID)) +
+                geom_path(alpha = 0.5) +
+                geom_point(
+                    data = curve_centroids, 
+                    mapping = aes(x = Curve_Centroid_X, y = Curve_Centroid_Y, color = ID),
+                    size = 5
+                ) +
+                ylab("OD") + xlab("Time (min)") +
+                theme_classic() 
+
+            ggsave(plot = gg, filename = paste(plot, ".png", sep = ""))
+
+    }
+
+    control_centroid <- curve_centroids %>% dplyr::filter(ID == control_col)
+    evals_centroids <- curve_centroids %>% dplyr::filter(ID != control_col)
+
+    CIs <- evals_centroids %>%
+        dplyr::group_by(ID) %>%
+        dplyr::reframe(
+            CI = 1 - ((
+                Curve_Centroid_X * Curve_Centroid_Y
+            ) / (
+                control_centroid$Curve_Centroid_X * control_centroid$Curve_Centroid_Y
+            ))
+        )
+    
+    write.table(CIs, sep = "\t", file = stdout(), row.names = F, quote = F)
     return(invisible(NULL))
 }
 
