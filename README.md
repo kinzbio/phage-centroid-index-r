@@ -7,6 +7,7 @@ This repo contains a single executable script, which can be run from the termina
 The script assumes the `csv` file has the same layout as returned by the Infitek's® spectrophotometer we have at Kinzbio. Should be easy to adapt to your own need. 
 
 ## Usage
+To use the script, you should make it executable first: `chmod +x centroid_index.r`, and met [dependencies](#dependencies).
 ```
 Usage
 =====
