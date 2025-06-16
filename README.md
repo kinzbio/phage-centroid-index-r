@@ -33,6 +33,12 @@ Options
 
 --plot=PLOT, -p PLOT
                 If provided, the name to the plot file (png). If not provided, the plotting is avoided.
+
+--starting_time=STARTING_TIME, -s STARTING_TIME
+                If provided, the initial time to consider, in the format "H:MM:SS". Default: "0:00:00".
+
+--final_time=FINAL_TIME, -f FINAL_TIME
+                If provided, the final time to consider, in the format "H:MM:SS", or Inf. Default: "Inf".
 ```
 # Example
 This repo comes with a `csv` file example, for testing and for if you need to replicate the format. 
@@ -42,17 +48,26 @@ This repo comes with a `csv` file example, for testing and for if you need to re
     --input ./inst/extdata/exampleOD.csv \
     --time_column "Time" \
     --control_column "C10" \
-    --eval_columns "C4,C5,C6,C7,C8"
+    --eval_columns "C4,C5,C6,C7,C8" \
+    --plot "start7hs" \
+    --starting_time "07:00:00"
 ```
 Result (printed in console):
 ```
 ID    CI
-C4    0.425946356973334
-C5    0.265642221211866
-C6    0.430014992809797
-C7    0.413032018605875
-C8    0.47985976983021
+C4    0.422265123214789
+C5    0.258525277242484
+C6    0.425114894335908
+C7    0.403943308542125
+C8    0.478949149585175
 ```
+And since we set the flag `--starting_time "07:00:00"`, the program only considers OD measures starting at that time for computing the centroids and the CI.
+
+The resulting plot showing the trapezoids and the centroids is the following:
+
+![trapezoids and centroids](/inst/extdata/start7hs.png){width=500}
+
+The trapezoids occurring before the starting time are shaded.
 
 # Dependencies
 Requires the following R packages to be installed:

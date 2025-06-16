@@ -37,14 +37,21 @@ read_od <- function(file = "od_curve.csv"){
 
 }
 
-format_od <- function(x, time = "Time", test = c("Test"), control = "Blank") {
+format_od <- function(x, time = "Time", test = c("Test"), control = "Blank", time_i, time_f) {
+
+
+    if (!suppressPackageStartupMessages(require(magrittr))) stop("Requires magrittr package:\n\ninstall.packages('magrittr')")
+    if (!suppressPackageStartupMessages(require(dplyr))) stop("Requires dplyr package:\n\ninstall.packages('dplyr')")
 
     difftime <- diff(x[[time]])
     tunits <- attr(difftime, "units")
 
+    x %<>%
+        dplyr::mutate(eval_time = Time >= time_i & Time <= time_f)
+
     x$time <- cumsum(as.integer(c(0, difftime)))
 
-    x <- x[c("time", control, test)]
+    x <- x[c("time", "eval_time", control, test)]
 
     attr(x, "time") <- "time"
     attr(x, "time_unit") <- tunits
@@ -59,6 +66,7 @@ compute_trapezoids <- function(x, od_col = "Test"){
 
     time_col <- attr(x, "time")
     trapezoids <- list()
+    eval_trp <- vector(mode = "logical", length = dim(x)[1]-1)
     i <- 2
     A <- c(x[[time_col]][i - 1], 0)
     for (i in 2:nrow(x)){
@@ -68,10 +76,12 @@ compute_trapezoids <- function(x, od_col = "Test"){
         # E <- A
         mat <- matrix(c(A, B, C, D), ncol = 2, byrow = TRUE)
         trapezoids[[i-1]] <- mat
+        eval_trp[i-1] <- x[["eval_time"]][i-1] & x[["eval_time"]][i]
         A <- B
     }
     names(trapezoids) <- seq_along(trapezoids)
-
+    
+    attr(trapezoids, "eval_trapezoid") <- eval_trp
     return(trapezoids)
 
 }
@@ -159,6 +169,24 @@ main <- function(){
         help = 'If provided, the name to the plot file (png). Default: ""'
     )
 
+    parser <- add_option(
+        parser,
+        c("-s", "--starting_time"),
+        action = "store",
+        type = "character",
+        default = "0:00:00",
+        help = 'If provided, the initial time to consider, in the format "H:MM:SS". Default: "0:00:00".'
+    )
+
+    parser <- add_option(
+        parser,
+        c("-f", "--final_time"),
+        action = "store",
+        type = "character",
+        default = "Inf",
+        help = 'If provided, the final time to consider, in the format "H:MM:SS", or Inf. Default: "Inf".'
+    )
+
     if (length(commandArgs(TRUE)) == 0) {
         print_help(parser)
         quit(status = 0)
@@ -172,6 +200,8 @@ main <- function(){
     control_col <- opt$control_column
     eval_cols <- opt$eval_columns
     plot <- opt$plot
+    tini <- opt$starting_time
+    tfin <- tolower(opt$final_time)
 
     # Check inputs
     if (!length(input)) stop("Missing --input argument. Provide an input csv file.")
@@ -181,6 +211,17 @@ main <- function(){
     if (!length(eval_cols)) stop("Missing --eval_columns argument. Provide the name of the columns to evaluate, separated by comma if multiple.")
 
 
+    # Check initial and final times
+    time_i <- as.POSIXct(paste("1899-12-31", tini), format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+    if (is.na(time_i)) stop('Argument --initial_time has wrong format. Should be like "0:10:00" (starts at minute 10).')
+    if (tfin != "inf"){
+        time_f <- as.POSIXct(paste("1899-12-31", tfin), format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+    } else {
+        time_f <- as.POSIXct(Inf, tz = "UTC")
+    }
+    if (is.na(time_f)) stop('Argument --final_time has wrong format. Should be like "1:10:00" (ends at minute 70), or "Inf".')
+
+    # Make vector of columns to evaluate
     evals <- strsplit(eval_cols, ",")[[1]]
 
     # Read OD table
@@ -204,13 +245,14 @@ main <- function(){
         stop(paste("The time column '", time_col, "' does not exits in the OD table.", sep = ""))
     }
 
-    fod <- format_od(od, time = time_col, test = evals, control = control_col)
+    fod <- format_od(od, time = time_col, test = evals, control = control_col, time_i = time_i, time_f = time_f)
 
     # Computes trapezoids, then their centroids and areas.
     tcas <- mapply(
         FUN = function(fod, od_col) {
             trps <- compute_trapezoids(fod, od_col = od_col)
-            mp <- mapply(FUN = function(trp, index){
+            eval_trps <- attr(trps, "eval_trapezoid")
+            mp <- mapply(FUN = function(trp, index, eval){
                 ca <- centroid_xy_area(trp)
                 data.frame(
                     ID = od_col,
@@ -225,10 +267,11 @@ main <- function(){
                     Dy = trp[4, 2], 
                     Centroid_x = ca[["Cx"]],
                     Centroid_y = ca[["Cy"]],
-                    Area = ca[["Area"]]
+                    Area = ca[["Area"]],
+                    Eval = eval
                 )
                 }, 
-                trp = trps, index = names(trps), SIMPLIFY = FALSE
+                trp = trps, index = names(trps), eval = eval_trps, SIMPLIFY = FALSE
             )
             do.call(rbind, mp)
         },
@@ -245,10 +288,12 @@ main <- function(){
             Y = c(Ay, By, Cy, Dy, Ay),
             Centroid_X = Centroid_x, 
             Centroid_Y = Centroid_y,
-            Area = Area
+            Area = Area, 
+            Eval = Eval
         )
 
     curve_centroids <- polys %>%
+        dplyr::filter(Eval) %>%
         dplyr::group_by(ID, index) %>%
         dplyr::reframe(
             Centroid_X = unique(Centroid_X),
@@ -265,7 +310,8 @@ main <- function(){
     if (plot != "") {
 
             gg <- ggplot(polys, aes(x = X, y = Y, color = ID)) +
-                geom_path(alpha = 0.5) +
+                geom_path(mapping = aes(alpha = Eval)) +
+                scale_alpha_manual(values = c("TRUE" = .9, "FALSE" = 0.2)) +
                 geom_point(
                     data = curve_centroids, 
                     mapping = aes(x = Curve_Centroid_X, y = Curve_Centroid_Y, color = ID),
@@ -274,7 +320,7 @@ main <- function(){
                 ylab("OD") + xlab("Time (min)") +
                 theme_classic() 
 
-            ggsave(plot = gg, filename = paste(plot, ".png", sep = ""))
+            ggsave(plot = gg, filename = paste(plot, ".png", sep = ""), height = 7, width = 10)
 
     }
 
