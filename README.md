@@ -29,6 +29,9 @@ Options
 
 --eval_columns=EVAL_COLUMNS, -e EVAL_COLUMNS
                 The name of the column to evaluate. Can be more than one, should be passed separated by comma and quoted: "B4,B5,B6".
+
+--plot=PLOT, -p PLOT
+                If provided, the name to the plot file (png). If not provided, the plotting is avoided.
 ```
 # Example
 This repo comes with a `csv` file example, for testing and for if you need to replicate the format. 
@@ -42,18 +45,22 @@ This repo comes with a `csv` file example, for testing and for if you need to re
 ```
 Result (printed in console):
 ```
-Name    Centroid_Index
-C4      0.425946356973334
-C5      0.265642221211866
-C6      0.430014992809797
-C7      0.413032018605875
-C8      0.47985976983021
+ID    CI
+C4    0.425946356973334
+C5    0.265642221211866
+C6    0.430014992809797
+C7    0.413032018605875
+C8    0.47985976983021
 ```
 
 # Dependencies
 Requires the following R packages to be installed:
  * tools (If you have R installed, you probably already have it already)
  * optparse (In the R console: `install.packages('optparse')`)
+ * magrittr (In the R console: `install.packages('magrittr')`)
+ * tidyr (In the R console: `install.packages('tidyr')`)
+ * dplyr (In the R console: `install.packages('dplyr')`)
+ * ggplot2 (In the R console: `install.packages('ggplot2')`)
 
 # Citation
 Please cite Hosseini's article:
