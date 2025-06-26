@@ -4,6 +4,7 @@
 read_od <- function(file = "od_curve.csv"){
 
     if (!suppressPackageStartupMessages(require(tools))) stop("Requires tools package:\n\ninstall.packages('tools')")
+    if (!suppressPackageStartupMessages(require(readr))) stop("Requires tools package:\n\ninstall.packages('tools')")
     
     ext <- tolower(tools::file_ext(file))
     if (ext %in% c("tsv", "csv")){
@@ -17,9 +18,9 @@ read_od <- function(file = "od_curve.csv"){
         )
         # Reads csv
         if (ext == "tsv"){
-            x <- suppressWarnings(read.csv(file, sep = "\t", header = TRUE, skip = 19, skipNul = TRUE))
+            x <- suppressWarnings(readr::read_tsv(file, skip = 19, show_col_types = FALSE, skip_empty_rows = T))
         }else{
-            x <- suppressWarnings(read.csv(file, sep = ",", header = TRUE, skip = 19, skipNul = TRUE))
+            x <- suppressWarnings(readr::read_csv(file, skip = 19, show_col_types = FALSE, skip_empty_rows = T))
         }
         x <- x[!sapply(x, function(y) all(is.na(y)))] # Removes NA columns
         x <- x[!is.na(x$No.), ]
